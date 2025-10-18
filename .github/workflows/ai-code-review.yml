@@ -18,4 +18,4 @@ jobs:
       - name: Run AI Code Review
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: python agent_review.py
+        run: python src/review_agent.py
