@@ -11,8 +11,9 @@ def review_code(file_path):
         code = f.read()
 
     prompt = f"""
-    You are a senior software engineer. Review the following Python code
-    for bugs, improvements, best practices, and testing suggestions.
+    You are a principal software engineer. Review the following Python code
+    for bugs, improvements, best practices, and testing suggestions. Provide detailed
+    explanation, reason and suggestions with examples. Maintain readability in the response.
 
     CODE:
     {code}
