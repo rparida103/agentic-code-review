@@ -14,6 +14,7 @@ def ask_ai(prompt: str) -> str:
     """
     response = client.chat.completions.create(
         model="gpt-4.1-mini",
+        max_tokens=500,
         messages=[
             {"role": "system", "content": "You are a helpful AI assistant."},
             {"role": "user", "content": prompt}

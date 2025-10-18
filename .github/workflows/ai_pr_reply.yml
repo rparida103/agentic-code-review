@@ -3,8 +3,6 @@ name: AI PR Conversation
 on:
   issue_comment:
     types: [created]
-  pull_request_review_comment:
-    types: [created]
 
 jobs:
   reply:
@@ -28,4 +26,5 @@ jobs:
           COMMENT_ID: ${{ github.event.comment.id }}
           COMMENT_BODY: ${{ github.event.comment.body }}
           COMMENT_USER: ${{ github.event.comment.user.login }}
+          BOT_USERNAME: rparida103   # your PAT account username
         run: python ai_comment_reply.py

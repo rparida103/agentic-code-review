@@ -46,6 +46,7 @@ CODE:
 """
     response = client.chat.completions.create(
         model="gpt-4.1-mini",
+        max_tokens=500,
         messages=[
             {"role": "system", "content": "You are a helpful AI code reviewer."},
             {"role": "user", "content": prompt}
