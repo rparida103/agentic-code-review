@@ -1,5 +1,6 @@
 import os
 import requests
+import time
 from openai import OpenAI
 from dotenv import load_dotenv
 
@@ -13,6 +14,7 @@ PR_NUMBER = os.getenv("PR_NUMBER")
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 
+time.sleep(5)
 # ------------------------------
 # Fetch all comments on the PR
 # ------------------------------
