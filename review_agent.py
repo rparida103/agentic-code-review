@@ -1,8 +1,8 @@
 from openai import OpenAI
-import os
 from dotenv import load_dotenv
+import os
 
-# Load API key
+# Load environment variables from .env
 load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
@@ -11,8 +11,8 @@ def review_code(file_path):
         code = f.read()
 
     prompt = f"""
-    You are a senior software engineer. Review the following Python code for improvements,
-    potential bugs, missing tests, and any best practices to follow.
+    You are a senior software engineer. Review the following Python code
+    for bugs, improvements, best practices, and testing suggestions.
 
     CODE:
     {code}
