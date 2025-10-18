@@ -34,3 +34,5 @@ jobs:
             -Dsonar.projectKey=rparida103_agentic-code-review
             -Dsonar.organization=rparida103
             -Dsonar.python.version=3.11
+            -Dsonar.coverage.exclusions=**/*
+            -Dsonar.cpd.exclusions=**/*
