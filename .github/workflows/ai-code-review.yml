@@ -1,0 +1,21 @@
+name: AI Code Review
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install openai python-dotenv
+      - name: Run AI Code Review
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: python agent_review.py
