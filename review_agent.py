@@ -65,5 +65,5 @@ def post_comment_to_pr(review_text):
 
 
 if __name__ == "__main__":
-    review_output = review_code("app.py")
+    review_output = review_code("ai_app.py")
     post_comment_to_pr(review_output)
