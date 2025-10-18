@@ -1,35 +1,43 @@
-from openai import OpenAI
-from dotenv import load_dotenv
 import os
 import requests
-import json
+from openai import OpenAI
+from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
-REPO = os.getenv("GITHUB_REPOSITORY")  # e.g. "rparida103/agentic-code-review"
-PR_NUMBER = os.getenv("PR_NUMBER")     # we'll pass this in workflow
+GITHUB_REPOSITORY = os.getenv("GITHUB_REPOSITORY")
+PR_NUMBER = os.getenv("PR_NUMBER")
+
+client = OpenAI(api_key=OPENAI_API_KEY)
+
+
+def get_pr_files(repo, pr_number, token):
+    """Fetch list of files changed in a PR."""
+    url = f"https://api.github.com/repos/{repo}/pulls/{pr_number}/files"
+    headers = {"Authorization": f"token {token}"}
+    response = requests.get(url, headers=headers)
+    response.raise_for_status()
+    files = response.json()
+    # Filter only Python files
+    return [f["filename"] for f in files if f["filename"].endswith(".py")]
+
 
 def review_code(file_path):
+    """Review code using OpenAI."""
     with open(file_path, "r") as f:
         code = f.read()
 
     prompt = f"""
-    You are a principal software engineer reviewing a pull request.
-    Review the following Python code for:
-    - Bugs and logic issues
-    - Performance or security problems
-    - Readability and maintainability
-    - Testing suggestions
+You are a senior software engineer. Review the following Python code
+for bugs, improvements, best practices, and testing suggestions.
+Provide detailed explanation and suggestions.
 
-    Respond with concise, line-specific comments if possible.
-
-    CODE:
-    {code}
-    """
-
+CODE:
+{code}
+"""
     response = client.chat.completions.create(
         model="gpt-4.1-mini",
         messages=[
@@ -37,33 +45,22 @@ def review_code(file_path):
             {"role": "user", "content": prompt}
         ]
     )
-
-    review_text = response.choices[0].message.content
-    print("=== AI Code Review ===")
-    print(review_text)
-    return review_text
+    return response.choices[0].message.content
 
 
-def post_comment_to_pr(review_text):
-    if not all([GITHUB_TOKEN, REPO, PR_NUMBER]):
-        print("Missing GitHub context — skipping PR comment.")
+def main():
+    print("=== AI Code Review for Python Files in PR ===")
+    python_files = get_pr_files(GITHUB_REPOSITORY, PR_NUMBER, GITHUB_TOKEN)
+
+    if not python_files:
+        print("No Python files changed in this PR.")
         return
 
-    url = f"https://api.github.com/repos/{REPO}/issues/{PR_NUMBER}/comments"
-    headers = {
-        "Authorization": f"token {GITHUB_TOKEN}",
-        "Accept": "application/vnd.github+json"
-    }
-
-    data = {"body": f"🤖 **AI Code Review Feedback:**\n\n{review_text}"}
-    response = requests.post(url, headers=headers, data=json.dumps(data))
-
-    if response.status_code == 201:
-        print(f"✅ Comment added to PR #{PR_NUMBER}")
-    else:
-        print(f"⚠️ Failed to post comment: {response.status_code} - {response.text}")
+    for file_path in python_files:
+        print(f"\n--- Reviewing: {file_path} ---")
+        feedback = review_code(file_path)
+        print(feedback)
 
 
 if __name__ == "__main__":
-    review_output = review_code("ai_app.py")
-    post_comment_to_pr(review_output)
+    main()
