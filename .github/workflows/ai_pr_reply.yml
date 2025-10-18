@@ -1,0 +1,28 @@
+name: AI PR Comment Reply
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize]
+
+jobs:
+  reply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install openai python-dotenv requests
+
+      - name: Run AI Comment Reply
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          BOT_USERNAME: rparida103
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: python ai_comment_reply.py
