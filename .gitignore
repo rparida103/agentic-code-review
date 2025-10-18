@@ -1,3 +1,15 @@
-.env
-.idea/
+# Python
+__pycache__/
+*.pyc
+
+# Virtual environment
 venv/
+
+# Secrets
+.env
+
+# PyCharm IDE
+.idea/
+
+# OS
+.DS_Store
