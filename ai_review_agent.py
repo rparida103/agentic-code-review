@@ -1,9 +1,10 @@
 import os
 import requests
-from langgraph.prebuilt import create_react_agent
-from langchain_core.tools import tool
-from openai import OpenAI
 from dotenv import load_dotenv
+from langchain_core.tools import tool
+from langchain.agents import create_agent
+from langchain.chat_models import ChatOpenAI
+from openai import OpenAI
 
 # ------------------------------
 # Load environment variables
@@ -11,11 +12,18 @@ from dotenv import load_dotenv
 load_dotenv()
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")  # Use PAT with repo scope
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")  # PAT token
 GITHUB_REPOSITORY = os.getenv("GITHUB_REPOSITORY")
 PR_NUMBER = int(os.getenv("PR_NUMBER"))
 
-client = OpenAI(api_key=OPENAI_API_KEY)
+# ------------------------------
+# Initialize Chat Model
+# ------------------------------
+chat_model = ChatOpenAI(
+    openai_api_key=OPENAI_API_KEY,
+    model_name="gpt-4o-mini",
+    temperature=0
+)
 
 # ------------------------------
 # Define Tools
@@ -49,12 +57,8 @@ Review this code for:
 Code:
 {code}
 """
-    resp = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[{"role": "user", "content": prompt}],
-        max_tokens=500
-    )
-    return resp.choices[0].message.content
+    response = chat_model.chat([{"role": "user", "content": prompt}])
+    return response.content
 
 @tool
 def post_pr_comment(repo: str, pr_number: int, body: str, token: str):
@@ -71,8 +75,8 @@ def post_pr_comment(repo: str, pr_number: int, body: str, token: str):
 # ------------------------------
 # Create LangGraph Agent
 # ------------------------------
-agent = create_react_agent(
-    model=client,
+agent = create_agent(
+    model=chat_model,
     tools=[get_pr_files, read_file, review_code, post_pr_comment],
     prompt="You are an autonomous AI code reviewer. Review all Python files in the PR and post comments."
 )
