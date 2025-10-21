@@ -92,7 +92,7 @@ Provide concise and actionable feedback.
 )
 
 # ------------------------------
-# Run the agent
+# Run the agent.
 # ------------------------------
 if __name__ == "__main__":
     print("=== 🤖 Starting AI PR Reviewer ===")
