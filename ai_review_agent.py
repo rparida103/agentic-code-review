@@ -22,6 +22,7 @@ client = OpenAI(api_key=OPENAI_API_KEY)
 # ------------------------------
 @tool
 def get_pr_files(repo: str, pr_number: int, token: str):
+    """Fetch all Python files changed in the given GitHub PR."""
     url = f"https://api.github.com/repos/{repo}/pulls/{pr_number}/files"
     headers = {"Authorization": f"token {token}"}
     resp = requests.get(url, headers=headers)
@@ -30,11 +31,13 @@ def get_pr_files(repo: str, pr_number: int, token: str):
 
 @tool
 def read_file(file_path: str):
+    """Read and return the contents of a local file."""
     with open(file_path, "r") as f:
         return f.read()
 
 @tool
 def review_code(code: str):
+    """Review the given Python code and provide suggestions for improvements, bugs, and tests."""
     prompt = f"""
 You are an expert Python code reviewer.
 Review this code for:
@@ -55,6 +58,7 @@ Code:
 
 @tool
 def post_pr_comment(repo: str, pr_number: int, body: str, token: str):
+    """Post a comment to the specified GitHub PR."""
     url = f"https://api.github.com/repos/{repo}/issues/{pr_number}/comments"
     headers = {"Authorization": f"token {token}"}
     data = {"body": body}
