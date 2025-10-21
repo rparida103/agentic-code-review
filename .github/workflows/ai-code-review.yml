@@ -14,7 +14,13 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install dependencies
-        run: pip install openai python-dotenv requests langgraph
+        run: pip install openai langgraph requests python-dotenv
+      - name: Check installed versions
+        run: |
+          python -m pip show openai
+          python -m pip show langgraph
+          python -m pip show requests
+          python -m pip show python-dotenv
       - name: Run AI Code Review
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
