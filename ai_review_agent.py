@@ -8,7 +8,6 @@ from dotenv import load_dotenv
 # Load environment variables
 # ------------------------------
 load_dotenv()
-
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 GITHUB_TOKEN = os.getenv("GH_PAT")  # Personal Access Token
 GITHUB_REPO = os.getenv("GITHUB_REPOSITORY")
@@ -17,11 +16,11 @@ PR_NUMBER = int(os.getenv("PR_NUMBER"))
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 # ------------------------------
-# Python "tools" for AI
+# Define Python "tools"
 # ------------------------------
 
 def list_python_files(repo: str, pr_number: int, token: str) -> list[str]:
-    """Return list of Python files changed in the PR."""
+    """Return list of Python files changed in a PR."""
     url = f"https://api.github.com/repos/{repo}/pulls/{pr_number}/files"
     headers = {"Authorization": f"token {token}"}
     response = requests.get(url, headers=headers)
@@ -30,16 +29,16 @@ def list_python_files(repo: str, pr_number: int, token: str) -> list[str]:
     return [f["filename"] for f in files if f["filename"].endswith(".py")]
 
 def read_file(file_path: str) -> str:
-    """Return the content of a local file."""
+    """Read the local file content."""
     with open(file_path, "r") as f:
         return f.read()
 
 def code_review(code: str) -> str:
-    """Analyze Python code and return review feedback."""
+    """Generate AI review feedback for Python code."""
     prompt = f"""
 You are a senior Python reviewer. Review this code for:
 1. Bugs or issues
-2. Improvements for readability and performance
+2. Performance or readability improvements
 3. Security concerns
 4. Testing or documentation suggestions
 
@@ -61,20 +60,19 @@ def post_comment(repo: str, pr_number: int, body: str, token: str) -> str:
     url = f"https://api.github.com/repos/{repo}/issues/{pr_number}/comments"
     headers = {"Authorization": f"token {token}"}
     data = {"body": body}
-    response = requests.post(url, json=data, headers=headers)
+    response = requests.post(url, headers=headers, json=data)
     if response.status_code == 201:
-        return "✅ Comment posted successfully"
+        return f"✅ Comment posted for PR {pr_number}"
     else:
-        return f"❌ Failed to comment: {response.status_code} - {response.text}"
+        return f"❌ Failed to post comment: {response.status_code} - {response.text}"
 
 # ------------------------------
-# Define tools in OpenAI SDK format
+# Define OpenAI SDK tools
 # ------------------------------
-
 tools = [
     {
         "name": "list_python_files",
-        "description": "Get all Python files changed in the PR.",
+        "description": "Get all Python files changed in a PR.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -119,7 +117,9 @@ tools = [
     }
 ]
 
-# Map tool names to functions
+# ------------------------------
+# Map tool names to actual Python functions
+# ------------------------------
 func_map = {
     "list_python_files": list_python_files,
     "read_file": read_file,
@@ -128,9 +128,8 @@ func_map = {
 }
 
 # ------------------------------
-# Autonomous AI logic
+# Autonomous AI prompt
 # ------------------------------
-
 prompt = f"""
 You are an autonomous AI code reviewer.
 1. Fetch all Python files in PR {PR_NUMBER} of repo {GITHUB_REPO}.
@@ -139,6 +138,9 @@ You are an autonomous AI code reviewer.
 4. Post review comments back to the PR.
 """
 
+# ------------------------------
+# Call the AI with tools
+# ------------------------------
 response = client.chat.completions.create(
     model="gpt-4.1-mini",
     messages=[{"role": "user", "content": prompt}],
@@ -152,12 +154,13 @@ if message.function_call:
     func_name = message.function_call.name
     args = json.loads(message.function_call.arguments)
 
-    # Securely inject GitHub token if needed
+    # Inject token automatically if needed
     if func_name in ["list_python_files", "post_comment"]:
         args["token"] = GITHUB_TOKEN
 
     print(f"AI called tool: {func_name} with args: {args}")
 
+    # Execute the selected tool
     if func_name in func_map:
         result = func_map[func_name](**args)
         print("Result:", result)
