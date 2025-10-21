@@ -2,7 +2,8 @@ import os
 import requests
 from dotenv import load_dotenv
 from openai import OpenAI
-from langgraph.prebuilt.chat_agent_executor import Tool, create_react_agent
+from langgraph.prebuilt.chat_agent_executor import create_react_agent
+from langgraph.prebuilt.tool import Tool
 
 # ------------------------------
 # Load environment variables
