@@ -1,9 +1,9 @@
 import os
 import requests
 from dotenv import load_dotenv
+from openai import OpenAI
 
 # LangGraph imports
-from langgraph_sdk import ChatOpenAI
 from langgraph.prebuilt.chat_agent_executor import create_react_agent, Tool
 
 # ------------------------------
@@ -17,14 +17,17 @@ GITHUB_REPOSITORY = os.getenv("GITHUB_REPOSITORY")
 PR_NUMBER = int(os.getenv("PR_NUMBER"))
 
 # ------------------------------
+# Initialize OpenAI client
+# ------------------------------
+client = OpenAI(api_key=OPENAI_API_KEY)
+
+# ------------------------------
 # Define Tools
 # ------------------------------
 
 @Tool
 def get_pr_files(repo: str, pr_number: int, token: str) -> list[str]:
-    """
-    Fetch Python files changed in the PR.
-    """
+    """Fetch Python files changed in the PR."""
     url = f"https://api.github.com/repos/{repo}/pulls/{pr_number}/files"
     headers = {"Authorization": f"token {token}"}
     resp = requests.get(url, headers=headers)
@@ -35,18 +38,14 @@ def get_pr_files(repo: str, pr_number: int, token: str) -> list[str]:
 
 @Tool
 def read_file(file_path: str) -> str:
-    """
-    Read file content from local repo.
-    """
+    """Read file content from local repo."""
     with open(file_path, "r") as f:
         return f.read()
 
 
 @Tool
 def review_code(code: str) -> str:
-    """
-    Use GPT to review the Python code and provide suggestions.
-    """
+    """Review Python code using OpenAI GPT."""
     prompt = f"""
 You are an expert Python code reviewer. Review this code for:
 1. Bugs or potential issues
@@ -57,23 +56,20 @@ You are an expert Python code reviewer. Review this code for:
 CODE:
 {code}
 """
-    # Use a temporary ChatOpenAI client for reviewing
-    client = ChatOpenAI(model="gpt-4o-mini", openai_api_key=OPENAI_API_KEY)
-    response = client.chat(
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
         messages=[
             {"role": "system", "content": "You are a helpful Python code reviewer."},
             {"role": "user", "content": prompt}
         ],
         max_tokens=500
     )
-    return response.content
+    return response.choices[0].message.content
 
 
 @Tool
 def post_pr_comment(repo: str, pr_number: int, body: str, token: str) -> str:
-    """
-    Post a comment to the GitHub PR.
-    """
+    """Post a comment to the GitHub PR."""
     url = f"https://api.github.com/repos/{repo}/issues/{pr_number}/comments"
     headers = {"Authorization": f"token {token}"}
     data = {"body": body}
@@ -85,12 +81,7 @@ def post_pr_comment(repo: str, pr_number: int, body: str, token: str) -> str:
 
 
 # ------------------------------
-# Initialize ChatOpenAI for Agent
-# ------------------------------
-client = ChatOpenAI(model="gpt-4o-mini", openai_api_key=OPENAI_API_KEY)
-
-# ------------------------------
-# Create the Agent
+# Create Agent
 # ------------------------------
 agent = create_react_agent(
     model=client,
