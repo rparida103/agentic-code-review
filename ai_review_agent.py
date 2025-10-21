@@ -1,10 +1,9 @@
 import os
 import requests
-from dotenv import load_dotenv
 from openai import OpenAI
-
-# LangGraph imports
-from langgraph.prebuilt.chat_agent_executor import create_react_agent, Tool
+from dotenv import load_dotenv
+from langgraph.prebuilt.chat_agent_executor import create_react_agent
+from langgraph.prebuilt.tool import Tool
 
 # ------------------------------
 # Load environment variables
@@ -12,22 +11,19 @@ from langgraph.prebuilt.chat_agent_executor import create_react_agent, Tool
 load_dotenv()
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")  # PAT token
+GITHUB_TOKEN = os.getenv("GH_PAT")
 GITHUB_REPOSITORY = os.getenv("GITHUB_REPOSITORY")
-PR_NUMBER = int(os.getenv("PR_NUMBER"))
+PR_NUMBER = os.getenv("PR_NUMBER")
 
-# ------------------------------
-# Initialize OpenAI client
-# ------------------------------
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 # ------------------------------
-# Define Tools
+# Tools
 # ------------------------------
 
 @Tool
-def get_pr_files(repo: str, pr_number: int, token: str) -> list[str]:
-    """Fetch Python files changed in the PR."""
+def get_pr_python_files(repo: str, pr_number: int, token: str) -> list[str]:
+    """Return a list of Python (.py) files changed in the PR."""
     url = f"https://api.github.com/repos/{repo}/pulls/{pr_number}/files"
     headers = {"Authorization": f"token {token}"}
     resp = requests.get(url, headers=headers)
@@ -35,41 +31,38 @@ def get_pr_files(repo: str, pr_number: int, token: str) -> list[str]:
     files = resp.json()
     return [f["filename"] for f in files if f["filename"].endswith(".py")]
 
-
 @Tool
 def read_file(file_path: str) -> str:
-    """Read file content from local repo."""
+    """Return the contents of a local file."""
     with open(file_path, "r") as f:
         return f.read()
 
-
 @Tool
 def review_code(code: str) -> str:
-    """Review Python code using OpenAI GPT."""
+    """Review Python code and provide suggestions, bugs, and best practices."""
     prompt = f"""
-You are an expert Python code reviewer. Review this code for:
-1. Bugs or potential issues
-2. Performance/readability improvements
-3. Security concerns
-4. Testing or documentation suggestions
+You are a senior Python reviewer. Analyze this code and provide:
+1. A short summary.
+2. Potential bugs or issues.
+3. Suggestions for improvement.
+4. Testing or documentation recommendations.
 
 CODE:
 {code}
 """
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
+    resp = client.chat.completions.create(
+        model="gpt-4.1-mini",
+        max_tokens=500,
         messages=[
-            {"role": "system", "content": "You are a helpful Python code reviewer."},
+            {"role": "system", "content": "You are an expert Python code reviewer."},
             {"role": "user", "content": prompt}
-        ],
-        max_tokens=500
+        ]
     )
-    return response.choices[0].message.content
-
+    return resp.choices[0].message.content
 
 @Tool
 def post_pr_comment(repo: str, pr_number: int, body: str, token: str) -> str:
-    """Post a comment to the GitHub PR."""
+    """Post a comment to a GitHub PR."""
     url = f"https://api.github.com/repos/{repo}/issues/{pr_number}/comments"
     headers = {"Authorization": f"token {token}"}
     data = {"body": body}
@@ -79,35 +72,29 @@ def post_pr_comment(repo: str, pr_number: int, body: str, token: str) -> str:
     else:
         return f"❌ Failed to comment: {resp.status_code} - {resp.text}"
 
+# ------------------------------
+# AI Agent
+# ------------------------------
 
-# ------------------------------
-# Create Agent
-# ------------------------------
 agent = create_react_agent(
     model=client,
-    tools=[get_pr_files, read_file, review_code, post_pr_comment]
+    tools=[get_pr_python_files, read_file, review_code, post_pr_comment]
 )
 
 # ------------------------------
-# Run Agent
+# Run the agent
 # ------------------------------
+
 if __name__ == "__main__":
-    system_prompt = """
-You are an autonomous AI code reviewer.
-1. Fetch all Python files in the current PR.
-2. Read their content.
-3. Review code for bugs, improvements, security, and tests.
-4. Post review comments back to the PR.
-Be concise and professional.
+    repo = GITHUB_REPOSITORY
+    pr_number = int(PR_NUMBER)
+    token = GITHUB_TOKEN
+
+    prompt = f"""
+Review all Python files in PR #{pr_number} in repository {repo}.
+For each file:
+- Read its content
+- Review the code
+- Post the review as a comment to the PR
 """
-    agent.invoke(
-        input=f"Review all Python files in PR #{PR_NUMBER} of repo {GITHUB_REPOSITORY}.",
-        config={
-            "system_prompt": system_prompt,
-            "args": {
-                "repo": GITHUB_REPOSITORY,
-                "pr_number": PR_NUMBER,
-                "token": GITHUB_TOKEN
-            }
-        }
-    )
+    agent.run(prompt)
