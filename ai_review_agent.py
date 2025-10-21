@@ -4,10 +4,13 @@ import json
 from openai import OpenAI
 from dotenv import load_dotenv
 
+# ------------------------------
+# Load environment variables
+# ------------------------------
 load_dotenv()
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-GITHUB_TOKEN = os.getenv("GH_PAT")  # Use a personal access token
+GITHUB_TOKEN = os.getenv("GH_PAT")  # Personal Access Token
 GITHUB_REPO = os.getenv("GITHUB_REPOSITORY")
 PR_NUMBER = int(os.getenv("PR_NUMBER"))
 
@@ -116,6 +119,14 @@ tools = [
     }
 ]
 
+# Map tool names to functions
+func_map = {
+    "list_python_files": list_python_files,
+    "read_file": read_file,
+    "code_review": code_review,
+    "post_comment": post_comment
+}
+
 # ------------------------------
 # Autonomous AI logic
 # ------------------------------
@@ -135,21 +146,17 @@ response = client.chat.completions.create(
     function_call="auto"
 )
 
-# AI decides which tool to call first
 message = response.choices[0].message
 
 if message.function_call:
     func_name = message.function_call.name
     args = json.loads(message.function_call.arguments)
-    print(f"AI called tool: {func_name} with args: {args}")
 
-    # Map the tool name to actual Python function
-    func_map = {
-        "list_python_files": list_python_files,
-        "read_file": read_file,
-        "code_review": code_review,
-        "post_comment": post_comment
-    }
+    # Securely inject GitHub token if needed
+    if func_name in ["list_python_files", "post_comment"]:
+        args["token"] = GITHUB_TOKEN
+
+    print(f"AI called tool: {func_name} with args: {args}")
 
     if func_name in func_map:
         result = func_map[func_name](**args)
