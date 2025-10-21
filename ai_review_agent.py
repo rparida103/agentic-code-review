@@ -1,15 +1,15 @@
 import os
 import requests
 from dotenv import load_dotenv
-from langgraph import Builder, Tool, ChatAgentExecutor
 from openai import OpenAI
+from langgraph.prebuilt.chat_agent_executor import Tool, create_react_agent
 
 # ------------------------------
 # Load environment variables
 # ------------------------------
 load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")  # Your PAT token
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")  # PAT token
 GITHUB_REPOSITORY = os.getenv("GITHUB_REPOSITORY")
 PR_NUMBER = int(os.getenv("PR_NUMBER"))
 
@@ -28,19 +28,19 @@ def get_pr_files(repo: str, pr_number: int, token: str):
     return [f["filename"] for f in resp.json() if f["filename"].endswith(".py")]
 
 def read_file(file_path: str):
-    """Read a local Python file and return its content."""
+    """Read a Python file and return its content."""
     with open(file_path, "r") as f:
         return f.read()
 
 def review_code(code: str):
-    """Review Python code and return feedback."""
+    """Review Python code for bugs, improvements, security, and tests."""
     prompt = f"""
-You are an expert Python code reviewer.
+You are a senior Python code reviewer.
 Analyze this code for:
-- Bugs or potential issues
-- Performance/readability improvements
-- Security concerns
-- Testing or documentation recommendations
+1. Bugs or potential issues
+2. Performance/readability improvements
+3. Security concerns
+4. Testing or documentation recommendations
 
 Code:
 {code}
@@ -66,32 +66,32 @@ def post_pr_comment(repo: str, pr_number: int, body: str, token: str):
     else:
         return f"❌ Failed to comment: {resp.status_code} - {resp.text}"
 
+# ------------------------------
 # Wrap tools for LangGraph
-tg_get_pr_files = Tool(name="get_pr_files", description="Get Python files changed in PR", func=get_pr_files)
-tg_read_file = Tool(name="read_file", description="Read a Python file", func=read_file)
-tg_review_code = Tool(name="review_code", description="Review Python code", func=review_code)
-tg_post_pr_comment = Tool(name="post_pr_comment", description="Post comment to PR", func=post_pr_comment)
+# ------------------------------
+tg_get_pr_files = Tool(name="get_pr_files", func=get_pr_files)
+tg_read_file = Tool(name="read_file", func=read_file)
+tg_review_code = Tool(name="review_code", func=review_code)
+tg_post_pr_comment = Tool(name="post_pr_comment", func=post_pr_comment)
 
 # ------------------------------
-# Build the Agent
+# Create the prebuilt agent
 # ------------------------------
-builder = Builder(name="AI PR Reviewer", model=client)
-builder.add_tools([tg_get_pr_files, tg_read_file, tg_review_code, tg_post_pr_comment])
-builder.set_instructions(
-    """
+agent = create_react_agent(
+    model=client,
+    tools=[tg_get_pr_files, tg_read_file, tg_review_code, tg_post_pr_comment],
+    instructions="""
 You are an autonomous AI code reviewer.
-1. Fetch all Python files in the PR.
-2. Read the file content.
-3. Review the code.
-4. Post review comments back to GitHub.
+1. Fetch all Python files in the current PR.
+2. Read their content.
+3. Review the code for bugs, improvements, security, and tests.
+4. Post review comments back to the PR.
 Provide concise and actionable feedback.
 """
 )
 
-agent = builder.build()
-
 # ------------------------------
-# Run Agent
+# Run the agent
 # ------------------------------
 if __name__ == "__main__":
     print("=== 🤖 Starting AI PR Reviewer ===")
