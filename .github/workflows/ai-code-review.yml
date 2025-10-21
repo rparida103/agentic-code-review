@@ -14,10 +14,11 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install dependencies
-        run: pip install openai langgraph requests python-dotenv
+        run: pip install openai langgraph_sdk langgraph requests python-dotenv
       - name: Check installed versions
         run: |
           python -m pip show openai
+          python -m pip show langgraph_sdk
           python -m pip show langgraph
           python -m pip show requests
           python -m pip show python-dotenv
