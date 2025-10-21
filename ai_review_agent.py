@@ -1,6 +1,6 @@
 import os
 import requests
-from openai import OpenAI
+from openai import OpenAI, function_tool, ai_agent
 from dotenv import load_dotenv
 
 # ------------------------------
@@ -15,12 +15,14 @@ PR_NUMBER = os.getenv("PR_NUMBER")
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 
-# ------------------------------
-# Fetch changed Python files in PR
-# ------------------------------
-def get_pr_files(repo, pr_number, token):
+# ======================================================
+# 🎯 Define Function Tools
+# ======================================================
+
+@function_tool
+def get_pr_files(repo: str, pr_number: int, token: str) -> list[str]:
     """
-    Returns a list of Python files changed in the PR
+    Fetch a list of Python (.py) files changed in the given GitHub PR.
     """
     url = f"https://api.github.com/repos/{repo}/pulls/{pr_number}/files"
     headers = {"Authorization": f"token {token}"}
@@ -29,68 +31,104 @@ def get_pr_files(repo, pr_number, token):
     files = response.json()
     return [f["filename"] for f in files if f["filename"].endswith(".py")]
 
-# ------------------------------
-# Review code using OpenAI
-# ------------------------------
-def review_code(file_path):
-    with open(file_path, "r") as f:
-        code = f.read()
 
+@function_tool
+def read_file(file_path: str) -> str:
+    """
+    Read and return the contents of a file.
+    """
+    with open(file_path, "r") as f:
+        return f.read()
+
+
+@function_tool
+def review_code(code: str) -> str:
+    """
+    Review the given Python code for:
+    - Bugs or potential issues
+    - Performance or readability improvements
+    - Security concerns
+    - Unit testing or documentation suggestions
+    """
     prompt = f"""
-You are a senior software engineer. Review the following Python code
-for bugs, improvements, best practices, and testing suggestions.
-Provide clear, actionable feedback.
+You are a senior Python reviewer. Analyze this code carefully and provide:
+1. A short summary of what the code does.
+2. Potential bugs or issues.
+3. Suggestions for improvement.
+4. Testing or documentation recommendations.
 
 CODE:
 {code}
 """
     response = client.chat.completions.create(
         model="gpt-4o-mini",
-        max_tokens=500,
+        max_tokens=700,
         messages=[
-            {"role": "system", "content": "You are a helpful AI code reviewer."},
+            {"role": "system", "content": "You are an expert software reviewer."},
             {"role": "user", "content": prompt}
         ]
     )
     return response.choices[0].message.content
 
-# ------------------------------
-# Post general comment to GitHub PR
-# ------------------------------
-def post_pr_comment(repo, pr_number, body, token):
+
+@function_tool
+def post_pr_comment(repo: str, pr_number: int, body: str, token: str) -> str:
     """
-    Post a general comment to the PR (not line-specific)
+    Post a comment to the specified GitHub PR.
     """
     url = f"https://api.github.com/repos/{repo}/issues/{pr_number}/comments"
     headers = {"Authorization": f"token {token}"}
     data = {"body": body}
     response = requests.post(url, json=data, headers=headers)
     if response.status_code == 201:
-        print("✅ Comment added to PR")
+        return "✅ Comment posted successfully"
     else:
-        print(f"❌ Failed to comment on PR: {response.status_code} - {response.text}")
+        return f"❌ Failed to comment: {response.status_code} - {response.text}"
 
-# ------------------------------
-# Main execution
-# ------------------------------
-def main():
-    print("=== AI Code Review for Python Files in PR ===")
-    python_files = get_pr_files(GITHUB_REPOSITORY, PR_NUMBER, GITHUB_TOKEN)
 
-    if not python_files:
-        print("No Python files changed in this PR.")
+# ======================================================
+# 🧠 Define the AI Agent
+# ======================================================
+
+@ai_agent(
+    name="AI Code Reviewer",
+    model="gpt-4o-mini",
+    instructions="""
+You are an autonomous code review assistant that:
+1. Fetches all changed Python files in the current PR.
+2. Reads their content.
+3. Reviews the code using the review_code tool.
+4. Posts review comments back to the PR.
+Be concise and professional in your feedback.
+""",
+    tools=[get_pr_files, read_file, review_code, post_pr_comment],
+)
+def ai_reviewer(agent):
+    """
+    Main AI agent that coordinates code review using the defined tools.
+    """
+    repo = GITHUB_REPOSITORY
+    pr_number = int(PR_NUMBER)
+    token = GITHUB_TOKEN
+
+    agent.log("Fetching Python files in PR...")
+    files = get_pr_files(repo, pr_number, token)
+    if not files:
+        agent.log("No Python files found in this PR.")
         return
 
-    for file_path in python_files:
-        print(f"\n--- Reviewing: {file_path} ---")
-        feedback = review_code(file_path)
-        print(feedback)
-        post_pr_comment(
-            GITHUB_REPOSITORY,
-            PR_NUMBER,
-            f"### AI Review for `{file_path}`\n{feedback}",
-            GITHUB_TOKEN
-        )
+    for file_path in files:
+        agent.log(f"Reviewing: {file_path}")
+        code = read_file(file_path)
+        feedback = review_code(code)
+        post_pr_comment(repo, pr_number, f"### 🤖 AI Review for `{file_path}`\n{feedback}", token)
+        agent.log(f"Review posted for {file_path} ✅")
+
+
+# ======================================================
+# 🚀 Main
+# ======================================================
 
 if __name__ == "__main__":
-    main()
+    print("=== 🤖 Starting Autonomous AI Code Reviewer ===")
+    ai_reviewer.run("Review all changed Python files in the current PR and comment feedback.")
