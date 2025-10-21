@@ -1,24 +1,18 @@
-import os
-import requests
-from dotenv import load_dotenv
-from openai import OpenAI
 from langgraph.prebuilt.chat_agent_executor import create_react_agent
-from langgraph.prebuilt.tool import Tool
+from openai import OpenAI
+import requests
+import os
+from dotenv import load_dotenv
 
-# ------------------------------
-# Load environment variables
-# ------------------------------
 load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")  # PAT token
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 GITHUB_REPOSITORY = os.getenv("GITHUB_REPOSITORY")
 PR_NUMBER = int(os.getenv("PR_NUMBER"))
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 
-# ------------------------------
-# Define Tools
-# ------------------------------
+# ---------------- Tools as functions ----------------
 
 def get_pr_files(repo: str, pr_number: int, token: str):
     """Fetch all Python files changed in a GitHub PR."""
@@ -67,20 +61,11 @@ def post_pr_comment(repo: str, pr_number: int, body: str, token: str):
     else:
         return f"❌ Failed to comment: {resp.status_code} - {resp.text}"
 
-# ------------------------------
-# Wrap tools for LangGraph
-# ------------------------------
-tg_get_pr_files = Tool(name="get_pr_files", func=get_pr_files)
-tg_read_file = Tool(name="read_file", func=read_file)
-tg_review_code = Tool(name="review_code", func=review_code)
-tg_post_pr_comment = Tool(name="post_pr_comment", func=post_pr_comment)
+# ---------------- Create agent ----------------
 
-# ------------------------------
-# Create the prebuilt agent
-# ------------------------------
 agent = create_react_agent(
     model=client,
-    tools=[tg_get_pr_files, tg_read_file, tg_review_code, tg_post_pr_comment],
+    tools=[get_pr_files, read_file, review_code, post_pr_comment],
     instructions="""
 You are an autonomous AI code reviewer.
 1. Fetch all Python files in the current PR.
@@ -91,11 +76,9 @@ Provide concise and actionable feedback.
 """
 )
 
-# ------------------------------
-# Run the agent.
-# ------------------------------
+# ---------------- Run agent ----------------
+
 if __name__ == "__main__":
-    print("=== 🤖 Starting AI PR Reviewer ===")
     agent.run(
         repo=GITHUB_REPOSITORY,
         pr_number=PR_NUMBER,
