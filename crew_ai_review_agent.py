@@ -51,4 +51,10 @@ tools = {
 # ------------------------------
 # Run agent with tools
 # ------------------------------
-agent.run(tools=tools)
+# ------------------------------
+# Run agent with tools (Crew AI 1.2.0)
+# ------------------------------
+agent.execute(
+    goal="Review Python files in the pull request and provide constructive feedback",
+    tools=tools
+)
