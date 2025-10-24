@@ -3,10 +3,10 @@ from dotenv import load_dotenv
 from openai import OpenAI
 from crewai.agent import Agent
 
-from tools.list_files_tool import list_python_files
-from tools.read_file_tool import read_file
-from tools.code_review_tool import code_review
-from tools.post_comment_tool import post_comment
+from py_tools.list_files_tool import list_python_files
+from py_tools.read_file_tool import read_file
+from py_tools.code_review_tool import code_review
+from py_tools.post_comment_tool import post_comment
 
 # ------------------------------
 # Load environment variables

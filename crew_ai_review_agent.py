@@ -4,13 +4,13 @@ from openai import OpenAI
 from crewai.agent import Agent
 from crewai.task import Task
 from crewai.crew import Crew
-from crewai_tools import tool
+from crewai_tools import tools
 
 # Import your custom tools (assumed to be standard functions)
-from tools.list_files_tool import list_python_files
-from tools.read_file_tool import read_file
-from tools.code_review_tool import code_review
-from tools.post_comment_tool import post_comment
+from py_tools.list_files_tool import list_python_files
+from py_tools.read_file_tool import read_file
+from py_tools.code_review_tool import code_review
+from py_tools.post_comment_tool import post_comment
 
 # ------------------------------
 # Load environment variables and setup
@@ -24,36 +24,33 @@ GITHUB_REPO = os.getenv("GITHUB_REPOSITORY")
 PR_NUMBER = int(os.getenv("PR_NUMBER", "0"))
 
 MODEL = "gpt-4o-mini"
-
-# Initialize the OpenAI client
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 # ------------------------------
-# Define custom tools using the @tool decorator
+# Define custom tools using the @tools.tool decorator
 # ------------------------------
 
-@tool
+@tools.tool # <-- FIX 2: Use @tools.tool
 def list_pr_python_files():
     """Lists all Python files modified in the current pull request. Returns a list of file paths."""
     return list_python_files(repo=GITHUB_REPO, pr_number=PR_NUMBER, token=GITHUB_TOKEN)
 
-@tool
+@tools.tool # <-- FIX 2: Use @tools.tool
 def read_file(file_path: str):
     """Reads the content of a specified file path."""
     return read_file(file_path)
 
-@tool
+@tools.tool # <-- FIX 2: Use @tools.tool
 def code_review(file_content: str):
     """Provides a detailed code review for the given file content, focusing on quality, bugs, and best practices."""
     return code_review(file_content)
 
-@tool
+@tools.tool # <-- FIX 2: Use @tools.tool
 def post_review_comment(file_path: str, feedback: str):
     """Posts a comment to the pull request for a given file path with the review feedback."""
     body = f"**{file_path}**\n\n{feedback}"
     return post_comment(repo=GITHUB_REPO, pr_number=PR_NUMBER, body=body, token=GITHUB_TOKEN)
 
-# List of Tool objects to be used by the agent
 available_tools = [list_pr_python_files, read_file, code_review, post_review_comment]
 
 # ------------------------------
@@ -89,7 +86,7 @@ review_task = Task(
 code_review_crew = Crew(
     agents=[code_reviewer_agent],
     tasks=[review_task],
-    verbose=0,
+    verbose=False,
 )
 
 print("Starting Code Review Crew...")

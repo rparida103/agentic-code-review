@@ -3,10 +3,10 @@ import json
 from dotenv import load_dotenv
 from openai import OpenAI
 
-from tools.list_files_tool import list_python_files, tool_spec as list_files_tool_spec
-from tools.read_file_tool import read_file, tool_spec as read_file_tool_spec
-from tools.code_review_tool import code_review, tool_spec as code_review_tool_spec
-from tools.post_comment_tool import post_comment, tool_spec as post_comment_tool_spec
+from py_tools.list_files_tool import list_python_files, tool_spec as list_files_tool_spec
+from py_tools.read_file_tool import read_file, tool_spec as read_file_tool_spec
+from py_tools.code_review_tool import code_review, tool_spec as code_review_tool_spec
+from py_tools.post_comment_tool import post_comment, tool_spec as post_comment_tool_spec
 
 # ------------------------------
 # Load environment variables
