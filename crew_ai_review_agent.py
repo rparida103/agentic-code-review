@@ -4,7 +4,7 @@ from openai import OpenAI
 from crewai.agent import Agent
 from crewai.task import Task
 from crewai.crew import Crew
-from crewai import tool
+from crewai_tools import tool
 
 # Import your custom tools (assumed to be standard functions)
 from tools.list_files_tool import list_python_files
@@ -31,8 +31,6 @@ client = OpenAI(api_key=OPENAI_API_KEY)
 # ------------------------------
 # Define custom tools using the @tool decorator
 # ------------------------------
-# The @tool decorator turns a Python function into a BaseTool instance
-# accepted by the CrewAI Agent.
 
 @tool
 def list_pr_python_files():
@@ -63,12 +61,11 @@ available_tools = [list_pr_python_files, read_file, code_review, post_review_com
 # ------------------------------
 code_reviewer_agent = Agent(
     model=MODEL,
-    # Use config for the client when using OpenAI models
     config={"client": client},
     role="Senior Code Reviewer",
     goal="Identify and post constructive feedback on all Python files modified in the pull request.",
     backstory="An expert AI assistant specialized in code review.",
-    tools=available_tools, # Tools are passed here
+    tools=available_tools,
 )
 
 # ------------------------------
@@ -92,7 +89,7 @@ review_task = Task(
 code_review_crew = Crew(
     agents=[code_reviewer_agent],
     tasks=[review_task],
-    verbose=0, # Verbosity turned off
+    verbose=0,
 )
 
 print("Starting Code Review Crew...")
