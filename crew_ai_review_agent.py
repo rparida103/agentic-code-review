@@ -6,18 +6,16 @@ from crewai.task import Task
 from crewai.crew import Crew
 from crewai.tools import tool
 
-# Import your custom tools (assumed to be standard functions)
+# Import existing functions
 from py_tools.list_files_tool import list_python_files
 from py_tools.read_file_tool import read_file
 from py_tools.code_review_tool import code_review
 from py_tools.post_comment_tool import post_comment
 
 # ------------------------------
-# Load environment variables and setup
+# Load environment variables
 # ------------------------------
 load_dotenv()
-
-# Get environment variables
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 GITHUB_REPO = os.getenv("GITHUB_REPOSITORY")
@@ -27,43 +25,39 @@ MODEL = "gpt-4o-mini"
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 # ------------------------------
-# Define custom tools using the @tools.tool decorator
+# Define tools using @tool decorator
 # ------------------------------
-
 @tool
 def list_pr_python_files():
-    """Lists all Python files modified in the current pull request. Returns a list of file paths."""
+    """Lists all Python files modified in the current pull request."""
     return list_python_files(repo=GITHUB_REPO, pr_number=PR_NUMBER, token=GITHUB_TOKEN)
 
 @tool
-def read_file(file_path: str):
+def read_file_content(file_path: str):
     """Reads the content of a specified file path."""
     return read_file(file_path)
 
 @tool
-def code_review(file_content: str):
-    """Provides a detailed code review for the given file content, focusing on quality, bugs, and best practices."""
+def generate_code_review(file_content: str):
+    """Analyzes Python code and generates review feedback."""
     return code_review(file_content)
 
 @tool
-def post_review_comment(file_path: str, feedback: str):
-    """Posts a comment to the pull request for a given file path with the review feedback.
-    **This is the final action for each file review and MUST be called with the generated feedback.**"""
+def post_review_feedback(file_path: str, feedback: str):
+    """Posts review feedback to the pull request for the specified file."""
     body = f"**{file_path}**\n\n{feedback}"
     return post_comment(repo=GITHUB_REPO, pr_number=PR_NUMBER, body=body, token=GITHUB_TOKEN)
 
-available_tools = [list_pr_python_files, read_file, code_review, post_review_comment]
-
 # ------------------------------
-# Create CrewAgent
+# Create the Agent
 # ------------------------------
 code_reviewer_agent = Agent(
     model=MODEL,
     config={"client": client},
     role="Senior Code Reviewer",
-    goal="Identify and post constructive feedback on all Python files modified in the pull request.",
+    goal="Review Python files in the pull request and post constructive feedback.",
     backstory="An expert AI assistant specialized in code review.",
-    tools=available_tools,
+    tools=[list_pr_python_files, read_file_content, generate_code_review, post_review_feedback]
 )
 
 # ------------------------------
@@ -71,27 +65,22 @@ code_reviewer_agent = Agent(
 # ------------------------------
 review_task = Task(
     description=f"""
-        1. Use `list_pr_python_files` to get a list of all modified Python files in Pull Request #{PR_NUMBER}.
-        2. For each file, use `read_file` to get its content.
-        3. Use `code_review` to analyze the file content and generate detailed feedback.
-        4. Call the tool `post_review_comment(file_path, feedback)` for each file after generating the review. Do not summarize; actually invoke the tool.
-        5. Your final answer must be a summary of the files reviewed and the action taken.
+        1. Use `list_pr_python_files` to get all Python files in PR #{PR_NUMBER}.
+        2. For each file, call `read_file_content`.
+        3. Call `generate_code_review` to analyze content.
+        4. Call `post_review_feedback` to post the review.
+        5. Final output should be a summary of all files reviewed and confirmation of posted comments.
     """,
-    expected_output="A confirmation message listing all files reviewed and indicating that comments were successfully posted to the pull request.",
-    agent=code_reviewer_agent,
+    expected_output="Confirmation that comments were posted for all files.",
+    agent=code_reviewer_agent
 )
 
 # ------------------------------
 # Run Crew
 # ------------------------------
-code_review_crew = Crew(
-    agents=[code_reviewer_agent],
-    tasks=[review_task],
-    verbose=True,
-)
-
-print("Starting Code Review Crew...")
-review_result = code_review_crew.kickoff()
+crew = Crew(agents=[code_reviewer_agent], tasks=[review_task], verbose=True)
+print("Starting Crew AI Code Review...")
+review_result = crew.kickoff()
 
 # ------------------------------
 # Print final result
