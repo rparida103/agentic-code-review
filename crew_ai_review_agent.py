@@ -49,11 +49,17 @@ tools = {
 }
 
 # ------------------------------
-# Run agent with tools
+# Run agent with tools using chat method
 # ------------------------------
-while agent.has_next_step():
-    step = agent.next_step()
-    tool_name = step["tool"]
-    args = step.get("args", {})
-    result = tools[tool_name](**args)
+while True:
+    response = agent.chat(tools=tools)
+    if response is None or not response.get("function_call"):
+        break
+    function_call = response["function_call"]
+    tool_name = function_call["name"]
+    arguments = function_call.get("arguments", {})
+    if isinstance(arguments, str):
+        import json
+        arguments = json.loads(arguments)
+    result = tools[tool_name](**arguments)
     agent.feed_result(result)
