@@ -25,7 +25,13 @@ client = OpenAI(api_key=OPENAI_API_KEY)
 # ------------------------------
 # Create CrewAgent
 # ------------------------------
-agent = Agent(model=MODEL, client=client)
+agent = Agent(
+    model=MODEL,
+    client=client,
+    role="code reviewer",
+    goal="Review Python files in the pull request and provide constructive feedback",
+    backstory="An AI assistant specialized in code review to help improve code quality and maintainability."
+)
 
 # ------------------------------
 # Step 1: List Python files in the PR
