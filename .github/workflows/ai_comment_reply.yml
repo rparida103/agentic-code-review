@@ -3,8 +3,6 @@ name: AI Comment Reply
 on:
   issue_comment:
     types: [created]
-  pull_request_target:
-    types: [opened, synchronize, reopened]
 
 jobs:
   reply:

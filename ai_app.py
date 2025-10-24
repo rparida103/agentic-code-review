@@ -9,9 +9,9 @@ load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 def ask_ai(prompt: str) -> str:
-    """
+    """""
     Send a prompt to OpenAI and return the response.
-    """
+    """""
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         max_tokens=500,
