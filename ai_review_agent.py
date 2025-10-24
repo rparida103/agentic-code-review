@@ -14,6 +14,8 @@ GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 GITHUB_REPO = os.getenv("GITHUB_REPOSITORY")
 PR_NUMBER = int(os.getenv("PR_NUMBER", "0"))
 
+MODEL = "gpt-4.1-mini"
+
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 # ------------------------------
@@ -28,10 +30,12 @@ def list_python_files(repo: str, pr_number: int, token: str) -> list[str]:
     files = response.json()
     return [f["filename"] for f in files if f["filename"].endswith(".py")]
 
+
 def read_file(file_path: str) -> str:
     """Return the content of a local file."""
     with open(file_path, "r") as f:
         return f.read()
+
 
 def code_review(code: str) -> str:
     """Analyze Python code and return review feedback."""
@@ -46,14 +50,15 @@ CODE:
 {code}
 """
     response = client.chat.completions.create(
-        model="gpt-4.1-mini",
+        model=MODEL,
         messages=[
             {"role": "system", "content": "You are an expert Python reviewer."},
-            {"role": "user", "content": prompt}
+            {"role": "user", "content": prompt},
         ],
         max_tokens=600,
     )
     return response.choices[0].message.content
+
 
 def post_comment(repo: str, pr_number: int, body: str, token: str) -> str:
     """Post a comment to the GitHub PR."""
@@ -66,23 +71,27 @@ def post_comment(repo: str, pr_number: int, body: str, token: str) -> str:
     else:
         return f"❌ Failed to comment: {response.status_code} - {response.text}"
 
+
 # ------------------------------
-# Define tools in OpenAI SDK format
+# Define tools (✅ Correct new SDK format)
 # ------------------------------
 tools = [
     {
-        "name": "list_python_files",
-        "description": "Get all Python files changed in the PR.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "repo": {"type": "string"},
-                "pr_number": {"type": "integer"},
-                "token": {"type": "string"},
+        "type": "function",  # ✅ required in new SDK
+        "function": {
+            "name": "list_python_files",
+            "description": "Get all Python files changed in the PR.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "repo": {"type": "string"},
+                    "pr_number": {"type": "integer"},
+                    "token": {"type": "string"},
+                },
+                "required": ["repo", "pr_number", "token"],
             },
-            "required": ["repo", "pr_number", "token"],
         },
-    },
+    }
 ]
 
 # ------------------------------
@@ -99,7 +108,7 @@ Start by listing the Python files using the available tool.
 """
 
 response = client.chat.completions.create(
-    model="gpt-4.1-mini",
+    model=MODEL,
     messages=[{"role": "user", "content": prompt}],
     tools=tools,
     tool_choice="auto",
@@ -110,7 +119,7 @@ message = response.choices[0].message
 # ------------------------------
 # Step 2: Execute the AI’s chosen tool
 # ------------------------------
-if message.tool_calls:
+if hasattr(message, "tool_calls") and message.tool_calls:
     for tool_call in message.tool_calls:
         func_name = tool_call.function.name
         args = json.loads(tool_call.function.arguments)
@@ -151,6 +160,5 @@ if message.tool_calls:
                     print(comment_status)
                 except Exception as e:
                     print(f"⚠️ Error reviewing {file_path}: {e}")
-
 else:
     print("⚠️ No tool call detected from AI.")
