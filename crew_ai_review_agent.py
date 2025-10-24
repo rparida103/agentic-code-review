@@ -99,14 +99,19 @@ for file_path in python_files:
     post_review_feedback(file_path, feedback)
 
 # ------------------------------
-# Generate/update PR description if missing or inadequate
+# Generate/update PR description ONCE
 # ------------------------------
+print("Fetching PR details for description update...")
 pr_details = get_pr_details(GITHUB_REPO, PR_NUMBER, GITHUB_TOKEN)
 current_body = pr_details.get("body") or ""
+print(f"Current PR body ({len(current_body)} chars): {current_body!r}")
 
+# Only update description if it's empty or too short
 if not current_body.strip() or len(current_body.strip()) < 20:
     new_description = generate_pr_description(client, python_files, model=MODEL)
     update_result = update_pr_description(GITHUB_REPO, PR_NUMBER, GITHUB_TOKEN, new_description)
     print(update_result)
+else:
+    print("PR description already exists; skipping update.")
 
-print("\n✅ All Python files reviewed and comments posted to the PR.")
+print("\n All Python files reviewed and comments posted to the PR.")
