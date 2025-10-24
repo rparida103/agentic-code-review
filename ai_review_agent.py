@@ -1,23 +1,23 @@
 import os
 import json
 import requests
-from openai import OpenAI
 from dotenv import load_dotenv
+from openai import OpenAI
 
 # ------------------------------
-# Setup
+# Load environment variables
 # ------------------------------
 load_dotenv()
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-GITHUB_TOKEN = os.getenv("GH_PAT") or os.getenv("GITHUB_TOKEN")
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 GITHUB_REPO = os.getenv("GITHUB_REPOSITORY")
 PR_NUMBER = int(os.getenv("PR_NUMBER", "0"))
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 # ------------------------------
-# Tool Implementations
+# Tool functions
 # ------------------------------
 def list_python_files(repo: str, pr_number: int, token: str) -> list[str]:
     """Return list of Python files changed in the PR."""
@@ -51,9 +51,9 @@ CODE:
             {"role": "system", "content": "You are an expert Python reviewer."},
             {"role": "user", "content": prompt}
         ],
-        max_tokens=500
+        max_tokens=600,
     )
-    return response.choices[0].message.content.strip()
+    return response.choices[0].message.content
 
 def post_comment(repo: str, pr_number: int, body: str, token: str) -> str:
     """Post a comment to the GitHub PR."""
@@ -67,115 +67,90 @@ def post_comment(repo: str, pr_number: int, body: str, token: str) -> str:
         return f"❌ Failed to comment: {response.status_code} - {response.text}"
 
 # ------------------------------
-# Tool definitions for OpenAI SDK
+# Define tools in OpenAI SDK format
 # ------------------------------
 tools = [
     {
-        "type": "function",
-        "function": {
-            "name": "list_python_files",
-            "description": "Get all Python files changed in the PR.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "repo": {"type": "string"},
-                    "pr_number": {"type": "integer"},
-                    "token": {"type": "string"}
-                },
-                "required": ["repo", "pr_number", "token"]
-            }
-        }
+        "name": "list_python_files",
+        "description": "Get all Python files changed in the PR.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "repo": {"type": "string"},
+                "pr_number": {"type": "integer"},
+                "token": {"type": "string"},
+            },
+            "required": ["repo", "pr_number", "token"],
+        },
     },
-    {
-        "type": "function",
-        "function": {
-            "name": "read_file",
-            "description": "Read a local file and return its contents.",
-            "parameters": {
-                "type": "object",
-                "properties": {"file_path": {"type": "string"}},
-                "required": ["file_path"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "code_review",
-            "description": "Analyze Python code and return review comments.",
-            "parameters": {
-                "type": "object",
-                "properties": {"code": {"type": "string"}},
-                "required": ["code"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "post_comment",
-            "description": "Post a comment to the PR on GitHub.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "repo": {"type": "string"},
-                    "pr_number": {"type": "integer"},
-                    "body": {"type": "string"},
-                    "token": {"type": "string"}
-                },
-                "required": ["repo", "pr_number", "body", "token"]
-            }
-        }
-    }
 ]
 
 # ------------------------------
-# AI Agent logic
+# Step 1: Ask the AI to decide what to do
 # ------------------------------
 prompt = f"""
 You are an autonomous AI code reviewer.
-1. Fetch all Python files in PR {PR_NUMBER} of repo {GITHUB_REPO}.
-2. Read each file.
-3. Review the code for bugs, improvements, and best practices.
-4. Post review comments back to the PR.
+Your goal is to:
+1. Fetch all Python files in PR #{PR_NUMBER} from repo {GITHUB_REPO}.
+2. Review each file for bugs, improvements, security, and tests.
+3. Post feedback as GitHub PR comments.
+
+Start by listing the Python files using the available tool.
 """
 
 response = client.chat.completions.create(
     model="gpt-4.1-mini",
     messages=[{"role": "user", "content": prompt}],
     tools=tools,
-    tool_choice="auto"
+    tool_choice="auto",
 )
 
 message = response.choices[0].message
 
 # ------------------------------
-# Handle tool calls dynamically
+# Step 2: Execute the AI’s chosen tool
 # ------------------------------
-func_map = {
-    "list_python_files": list_python_files,
-    "read_file": read_file,
-    "code_review": code_review,
-    "post_comment": post_comment
-}
-
 if message.tool_calls:
     for tool_call in message.tool_calls:
         func_name = tool_call.function.name
-        args = json.loads(tool_call.function.arguments or "{}")
+        args = json.loads(tool_call.function.arguments)
 
-        # 🔐 Force token injection
+        # Secure token injection
         if func_name in ["list_python_files", "post_comment"]:
-            if not GITHUB_TOKEN:
-                raise ValueError("❌ Missing GitHub token (GH_PAT or GITHUB_TOKEN)")
             args["token"] = GITHUB_TOKEN
 
-        print(f"\n🧠 AI called tool: {func_name} with args: {args}")
+        print(f"🧠 AI called tool: {func_name} with args: {args}")
+
+        func_map = {
+            "list_python_files": list_python_files,
+            "read_file": read_file,
+            "code_review": code_review,
+            "post_comment": post_comment,
+        }
 
         if func_name in func_map:
             result = func_map[func_name](**args)
-            print("✅ Tool result:", result)
-        else:
-            print(f"⚠️ Unknown tool called: {func_name}")
+            print(f"✅ Tool result: {result}")
+
+            # ------------------------------
+            # Step 3: Review each Python file
+            # ------------------------------
+            python_files = result if isinstance(result, list) else []
+            for file_path in python_files:
+                print(f"\n📄 Reviewing file: {file_path}")
+                try:
+                    code = read_file(file_path)
+                    feedback = code_review(code)
+                    print(f"\n💬 Review for {file_path}:\n{feedback}\n")
+                    comment_status = post_comment(
+                        GITHUB_REPO,
+                        PR_NUMBER,
+                        f"**{file_path}**\n\n{feedback}",
+                        GITHUB_TOKEN,
+                    )
+                    print(comment_status)
+                except Exception as e:
+                    print(f"⚠️ Error reviewing {file_path}: {e}")
+
 else:
-    print("⚠️ No tool calls made by AI")
+    print("⚠️ No tool call detected from AI.")
