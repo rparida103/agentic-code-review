@@ -25,31 +25,26 @@ MODEL = "gpt-4o-mini"
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 # ------------------------------
-# Define tools using @tool decorator
+# Tools as @tool for Crew reasoning
 # ------------------------------
 @tool
 def list_pr_python_files():
-    """Lists all Python files modified in the current pull request."""
+    """Return a list of Python files modified in the PR."""
     return list_python_files(repo=GITHUB_REPO, pr_number=PR_NUMBER, token=GITHUB_TOKEN)
 
-@tool
+# Other tools are normal Python functions to ensure actual PR posting
 def read_file_content(file_path: str):
-    """Reads the content of a specified file path."""
     return read_file(file_path)
 
-@tool
 def generate_code_review(file_content: str):
-    """Analyzes Python code and generates review feedback."""
     return code_review(file_content)
 
-@tool
 def post_review_feedback(file_path: str, feedback: str):
-    """Posts review feedback to the pull request for the specified file."""
     body = f"**{file_path}**\n\n{feedback}"
     return post_comment(repo=GITHUB_REPO, pr_number=PR_NUMBER, body=body, token=GITHUB_TOKEN)
 
 # ------------------------------
-# Create the Agent
+# Create Crew Agent
 # ------------------------------
 code_reviewer_agent = Agent(
     model=MODEL,
@@ -57,7 +52,7 @@ code_reviewer_agent = Agent(
     role="Senior Code Reviewer",
     goal="Review Python files in the pull request and post constructive feedback.",
     backstory="An expert AI assistant specialized in code review.",
-    tools=[list_pr_python_files, read_file_content, generate_code_review, post_review_feedback]
+    tools=[list_pr_python_files],  # only Crew uses this tool for reasoning
 )
 
 # ------------------------------
@@ -66,24 +61,35 @@ code_reviewer_agent = Agent(
 review_task = Task(
     description=f"""
         1. Use `list_pr_python_files` to get all Python files in PR #{PR_NUMBER}.
-        2. For each file, call `read_file_content`.
-        3. Call `generate_code_review` to analyze content.
-        4. Call `post_review_feedback` to post the review.
-        5. Final output should be a summary of all files reviewed and confirmation of posted comments.
+        2. For each file, read its content using Python directly.
+        3. Generate detailed code review feedback using Python directly.
+        4. Post review feedback to the PR using Python directly.
+        5. Return a summary of all files reviewed.
     """,
     expected_output="Confirmation that comments were posted for all files.",
-    agent=code_reviewer_agent
+    agent=code_reviewer_agent,
 )
 
 # ------------------------------
 # Run Crew
 # ------------------------------
-crew = Crew(agents=[code_reviewer_agent], tasks=[review_task], verbose=True)
+crew = Crew(
+    agents=[code_reviewer_agent],
+    tasks=[review_task],
+    verbose=True,
+)
+
 print("Starting Crew AI Code Review...")
 review_result = crew.kickoff()
 
 # ------------------------------
-# Print final result
+# Step: actual review posting (bypassing Crew placeholder)
 # ------------------------------
+python_files = list_pr_python_files()
+for file_path in python_files:
+    content = read_file_content(file_path)
+    feedback = generate_code_review(content)  # actual detailed review
+    post_review_feedback(file_path, feedback)  # posts real comment to PR
+
 print("\n--- Review Summary ---")
 print(review_result)
