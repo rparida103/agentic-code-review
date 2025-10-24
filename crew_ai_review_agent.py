@@ -12,6 +12,9 @@ from py_tools.read_file_tool import read_file
 from py_tools.code_review_tool import code_review
 from py_tools.post_comment_tool import post_comment
 
+# Import PR description tool
+from py_tools.pr_description_tool import get_pr_details, update_pr_description, generate_pr_description
+
 # ------------------------------
 # Load environment variables
 # ------------------------------
@@ -94,5 +97,16 @@ for file_path in python_files:
     content = read_file_content(file_path)
     feedback = generate_code_review(content)
     post_review_feedback(file_path, feedback)
+
+# ------------------------------
+# Generate/update PR description if missing or inadequate
+# ------------------------------
+pr_details = get_pr_details(GITHUB_REPO, PR_NUMBER, GITHUB_TOKEN)
+current_body = pr_details.get("body") or ""
+
+if not current_body.strip() or len(current_body.strip()) < 20:
+    new_description = generate_pr_description(client, python_files, model=MODEL)
+    update_result = update_pr_description(GITHUB_REPO, PR_NUMBER, GITHUB_TOKEN, new_description)
+    print(update_result)
 
 print("\n✅ All Python files reviewed and comments posted to the PR.")
