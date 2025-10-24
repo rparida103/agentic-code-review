@@ -27,7 +27,7 @@ jobs:
       - name: Install dependencies
         run: pip install openai python-dotenv requests
 
-      # Optional: Add a step to prevent the bot from replying to itself
+      ## Optional: Add a step to prevent the bot from replying to itself
       - name: Skip if comment is from bot
         id: check_bot_user
         run: |
