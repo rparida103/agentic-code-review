@@ -6,7 +6,7 @@ from crewai.task import Task
 from crewai.crew import Crew
 from crewai.tools import tool
 
-# Import existing functions
+# Import your existing tools
 from py_tools.list_files_tool import list_python_files
 from py_tools.read_file_tool import read_file
 from py_tools.code_review_tool import code_review
@@ -25,14 +25,20 @@ MODEL = "gpt-4o-mini"
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 # ------------------------------
-# Tools as @tool for Crew reasoning
+# Crew Tool (used only for reasoning)
 # ------------------------------
 @tool
-def list_pr_python_files():
-    """Return a list of Python files modified in the PR."""
+def list_pr_python_files_tool():
+    """Lists all Python files modified in the PR (used by Crew for reasoning)."""
     return list_python_files(repo=GITHUB_REPO, pr_number=PR_NUMBER, token=GITHUB_TOKEN)
 
-# Other tools are normal Python functions to ensure actual PR posting
+# ------------------------------
+# Normal Python functions for execution
+# ------------------------------
+def get_pr_python_files():
+    """Return list of Python files (direct Python call)."""
+    return list_python_files(repo=GITHUB_REPO, pr_number=PR_NUMBER, token=GITHUB_TOKEN)
+
 def read_file_content(file_path: str):
     return read_file(file_path)
 
@@ -50,28 +56,26 @@ code_reviewer_agent = Agent(
     model=MODEL,
     config={"client": client},
     role="Senior Code Reviewer",
-    goal="Review Python files in the pull request and post constructive feedback.",
+    goal="Review Python files in the pull request and provide constructive feedback",
     backstory="An expert AI assistant specialized in code review.",
-    tools=[list_pr_python_files],  # only Crew uses this tool for reasoning
+    tools=[list_pr_python_files_tool],  # Crew uses this tool for reasoning
 )
 
 # ------------------------------
-# Define Task
+# Define Crew Task
 # ------------------------------
 review_task = Task(
     description=f"""
-        1. Use `list_pr_python_files` to get all Python files in PR #{PR_NUMBER}.
-        2. For each file, read its content using Python directly.
-        3. Generate detailed code review feedback using Python directly.
-        4. Post review feedback to the PR using Python directly.
-        5. Return a summary of all files reviewed.
+        1. Use `list_pr_python_files_tool` to determine the Python files in PR #{PR_NUMBER}.
+        2. For each file, read content, generate code review, and post feedback.
+        3. Return a summary of all files reviewed.
     """,
     expected_output="Confirmation that comments were posted for all files.",
     agent=code_reviewer_agent,
 )
 
 # ------------------------------
-# Run Crew
+# Run Crew (reasoning)
 # ------------------------------
 crew = Crew(
     agents=[code_reviewer_agent],
@@ -79,17 +83,16 @@ crew = Crew(
     verbose=True,
 )
 
-print("Starting Crew AI Code Review...")
-review_result = crew.kickoff()
+print("Starting Crew AI Code Review (reasoning)...")
+crew.kickoff()
 
 # ------------------------------
-# Step: actual review posting (bypassing Crew placeholder)
+# Execute real reviews and post comments
 # ------------------------------
-python_files = list_pr_python_files()
+python_files = get_pr_python_files()  # Direct Python call
 for file_path in python_files:
     content = read_file_content(file_path)
-    feedback = generate_code_review(content)  # actual detailed review
-    post_review_feedback(file_path, feedback)  # posts real comment to PR
+    feedback = generate_code_review(content)
+    post_review_feedback(file_path, feedback)
 
-print("\n--- Review Summary ---")
-print(review_result)
+print("\n✅ All Python files reviewed and comments posted to the PR.")
