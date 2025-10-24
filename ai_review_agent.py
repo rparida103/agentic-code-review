@@ -4,6 +4,11 @@ import requests
 from dotenv import load_dotenv
 from openai import OpenAI
 
+from tools.list_files_tool import list_python_files, tool_spec as list_files_tool_spec
+from tools.read_file_tool import read_file, tool_spec as read_file_tool_spec
+from tools.code_review_tool import code_review, tool_spec as code_review_tool_spec
+from tools.post_comment_tool import post_comment, tool_spec as post_comment_tool_spec
+
 # ------------------------------
 # Load environment variables
 # ------------------------------
@@ -14,84 +19,18 @@ GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 GITHUB_REPO = os.getenv("GITHUB_REPOSITORY")
 PR_NUMBER = int(os.getenv("PR_NUMBER", "0"))
 
-MODEL = "gpt-4.1-mini"
+MODEL = "gpt-4o-mini"
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 # ------------------------------
-# Tool functions
-# ------------------------------
-def list_python_files(repo: str, pr_number: int, token: str) -> list[str]:
-    """Return list of Python files changed in the PR."""
-    url = f"https://api.github.com/repos/{repo}/pulls/{pr_number}/files"
-    headers = {"Authorization": f"token {token}"}
-    response = requests.get(url, headers=headers)
-    response.raise_for_status()
-    files = response.json()
-    return [f["filename"] for f in files if f["filename"].endswith(".py")]
-
-
-def read_file(file_path: str) -> str:
-    """Return the content of a local file."""
-    with open(file_path, "r") as f:
-        return f.read()
-
-
-def code_review(code: str) -> str:
-    """Analyze Python code and return review feedback."""
-    prompt = f"""
-You are a senior Python reviewer. Review this code for:
-1. Bugs or issues
-2. Improvements for readability and performance
-3. Security concerns
-4. Testing or documentation suggestions
-
-CODE:
-{code}
-"""
-    response = client.chat.completions.create(
-        model=MODEL,
-        messages=[
-            {"role": "system", "content": "You are an expert Python reviewer."},
-            {"role": "user", "content": prompt},
-        ],
-        max_tokens=600,
-    )
-    return response.choices[0].message.content
-
-
-def post_comment(repo: str, pr_number: int, body: str, token: str) -> str:
-    """Post a comment to the GitHub PR."""
-    url = f"https://api.github.com/repos/{repo}/issues/{pr_number}/comments"
-    headers = {"Authorization": f"token {token}"}
-    data = {"body": body}
-    response = requests.post(url, json=data, headers=headers)
-    if response.status_code == 201:
-        return "✅ Comment posted successfully"
-    else:
-        return f"❌ Failed to comment: {response.status_code} - {response.text}"
-
-
-# ------------------------------
-# Define tools (✅ Correct new SDK format)
+# Combine all tool specs
 # ------------------------------
 tools = [
-    {
-        "type": "function",  # ✅ required in new SDK
-        "function": {
-            "name": "list_python_files",
-            "description": "Get all Python files changed in the PR.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "repo": {"type": "string"},
-                    "pr_number": {"type": "integer"},
-                    "token": {"type": "string"},
-                },
-                "required": ["repo", "pr_number", "token"],
-            },
-        },
-    }
+    list_files_tool_spec,
+    read_file_tool_spec,
+    code_review_tool_spec,
+    post_comment_tool_spec,
 ]
 
 # ------------------------------
@@ -161,4 +100,4 @@ if hasattr(message, "tool_calls") and message.tool_calls:
                 except Exception as e:
                     print(f"⚠️ Error reviewing {file_path}: {e}")
 else:
-    print("⚠️ No tool call detected from AI.")
+    print("No tool call detected from AI.")
