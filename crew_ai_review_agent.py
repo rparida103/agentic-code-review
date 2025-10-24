@@ -1,7 +1,7 @@
 import os
 from dotenv import load_dotenv
 from openai import OpenAI
-from crewai import CrewAgent
+from crewai.agent import CrewAgent
 
 from tools.list_files_tool import list_python_files
 from tools.read_file_tool import read_file
@@ -30,7 +30,7 @@ agent = CrewAgent(model=MODEL, client=client)
 # ------------------------------
 # Step 1: List Python files in the PR
 # ------------------------------
-python_files = list_python_files(token=GITHUB_TOKEN)
+python_files = list_python_files(repo=GITHUB_REPO, pr_number=PR_NUMBER, token=GITHUB_TOKEN)
 
 # ------------------------------
 # Step 2: Review each Python file

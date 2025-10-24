@@ -18,6 +18,7 @@ jobs:
       - name: Check installed versions
         run: |
           python -m pip show openai
+          python -m pip show crewai
           python -m pip show requests
           python -m pip show python-dotenv
       - name: Run AI Code Review
