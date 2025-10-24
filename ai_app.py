@@ -13,7 +13,7 @@ def ask_ai(prompt: str) -> str:
     Send a prompt to OpenAI and return the response.
     """
     response = client.chat.completions.create(
-        model="gpt-4.1-mini",
+        model="gpt-4o-mini",
         max_tokens=500,
         messages=[
             {"role": "system", "content": "You are a helpful AI assistant."},
