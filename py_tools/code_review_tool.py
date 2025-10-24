@@ -21,7 +21,7 @@ def code_review(code: str) -> str:
             {"role": "system", "content": "You are an expert Python reviewer."},
             {"role": "user", "content": prompt},
         ],
-        max_tokens=600,
+        max_tokens=500,
     )
     return response.choices[0].message.content
 
