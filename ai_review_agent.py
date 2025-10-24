@@ -1,13 +1,12 @@
 import os
 import json
-import requests
 from dotenv import load_dotenv
 from openai import OpenAI
 
-from tools.list_files_tool import list_python_files, tool_spec as list_files_tool_spec
-from tools.read_file_tool import read_file, tool_spec as read_file_tool_spec
-from tools.code_review_tool import code_review, tool_spec as code_review_tool_spec
-from tools.post_comment_tool import post_comment, tool_spec as post_comment_tool_spec
+from py_tools.list_files_tool import list_python_files, tool_spec as list_files_tool_spec
+from py_tools.read_file_tool import read_file, tool_spec as read_file_tool_spec
+from py_tools.code_review_tool import code_review, tool_spec as code_review_tool_spec
+from py_tools.post_comment_tool import post_comment, tool_spec as post_comment_tool_spec
 
 # ------------------------------
 # Load environment variables
@@ -58,46 +57,46 @@ message = response.choices[0].message
 # ------------------------------
 # Step 2: Execute the AI’s chosen tool
 # ------------------------------
-if hasattr(message, "tool_calls") and message.tool_calls:
-    for tool_call in message.tool_calls:
-        func_name = tool_call.function.name
-        args = json.loads(tool_call.function.arguments)
+tool_calls = getattr(message, "tool_calls", [])
+for tool_call in tool_calls:
+    func_name = tool_call.function.name
+    args = json.loads(tool_call.function.arguments)
 
-        # Secure token injection
-        if func_name in ["list_python_files", "post_comment"]:
-            args["token"] = GITHUB_TOKEN
+    # Secure token injection
+    if func_name in ["list_python_files", "post_comment"]:
+        args["token"] = GITHUB_TOKEN
 
-        print(f"🧠 AI called tool: {func_name} with args: {args}")
+    print(f"AI called tool: {func_name} with args: {args}")
 
-        func_map = {
-            "list_python_files": list_python_files,
-            "read_file": read_file,
-            "code_review": code_review,
-            "post_comment": post_comment,
-        }
+    func_map = {
+        "list_python_files": list_python_files,
+        "read_file": read_file,
+        "code_review": code_review,
+        "post_comment": post_comment,
+    }
 
-        if func_name in func_map:
-            result = func_map[func_name](**args)
-            print(f"✅ Tool result: {result}")
+    if func_name in func_map:
+        result = func_map[func_name](**args)
+        print(f"Tool result: {result}")
 
-            # ------------------------------
-            # Step 3: Review each Python file
-            # ------------------------------
-            python_files = result if isinstance(result, list) else []
-            for file_path in python_files:
-                print(f"\n📄 Reviewing file: {file_path}")
-                try:
-                    code = read_file(file_path)
-                    feedback = code_review(code)
-                    print(f"\n💬 Review for {file_path}:\n{feedback}\n")
-                    comment_status = post_comment(
-                        GITHUB_REPO,
-                        PR_NUMBER,
-                        f"**{file_path}**\n\n{feedback}",
-                        GITHUB_TOKEN,
-                    )
-                    print(comment_status)
-                except Exception as e:
-                    print(f"⚠️ Error reviewing {file_path}: {e}")
-else:
+        # ------------------------------
+        # Step 3: Review each Python file
+        # ------------------------------
+        python_files = result if isinstance(result, list) else []
+        for file_path in python_files:
+            print(f"\n Reviewing file: {file_path}")
+            try:
+                code = read_file(file_path)
+                feedback = code_review(code)
+                print(f"\n Review for {file_path}:\n{feedback}\n")
+                comment_status = post_comment(
+                    GITHUB_REPO,
+                    PR_NUMBER,
+                    f"**{file_path}**\n\n{feedback}",
+                    GITHUB_TOKEN,
+                )
+                print(comment_status)
+            except Exception as e:
+                print(f" Error reviewing {file_path}: {e}")
+if not tool_calls:
     print("No tool call detected from AI.")

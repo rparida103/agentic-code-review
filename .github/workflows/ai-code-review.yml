@@ -14,10 +14,11 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install dependencies
-        run: pip install openai requests python-dotenv
+        run: pip install openai crewai requests python-dotenv
       - name: Check installed versions
         run: |
           python -m pip show openai
+          python -m pip show crewai
           python -m pip show requests
           python -m pip show python-dotenv
       - name: Run AI Code Review
@@ -26,4 +27,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GH_PAT }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: python ai_review_agent.py
+        run: python crew_ai_review_agent.py
