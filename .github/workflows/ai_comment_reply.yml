@@ -14,7 +14,7 @@ jobs:
 
     # 1. PR Check: Ensure the comment is on a Pull Request, not a regular Issue.
     # FIX APPLIED HERE: Check if the pull_request property exists in the issue object.
-    if: github.event.issue.pull_request != null
+    if: github.event.issue.pull_request
 
     steps:
       - uses: actions/checkout@v4
@@ -26,19 +26,6 @@ jobs:
 
       - name: Install dependencies
         run: pip install openai python-dotenv requests
-
-      # Optional: Add a step to prevent the bot from replying to itself
-      - name: Skip if comment is from bot
-        id: check_bot_user
-        run: |
-          # Use the environment variable or literal string for the bot username
-          BOT_USERNAME="rparida103"
-          COMMENT_USER="${{ github.event.comment.user.login }}"
-          if [[ "$COMMENT_USER" == "$BOT_USERNAME" ]]; then
-            echo "::notice::Comment made by bot ($BOT_USERNAME). Skipping reply."
-            # Use the correct GITHUB_OUTPUT format
-            echo "skip_job=true" >> $GITHUB_OUTPUT
-          fi
 
       - name: Run AI Comment Reply
         env:
