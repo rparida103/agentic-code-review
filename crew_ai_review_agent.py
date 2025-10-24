@@ -74,7 +74,7 @@ review_task = Task(
         1. Use `list_pr_python_files` to get a list of all modified Python files in Pull Request #{PR_NUMBER}.
         2. For each file, use `read_file` to get its content.
         3. Use `code_review` to analyze the file content and generate detailed feedback.
-        4. Finally, use `post_review_comment` to post the feedback back to the pull request for the corresponding file.
+        4. Call the tool `post_review_comment(file_path, feedback)` for each file after generating the review. Do not summarize; actually invoke the tool.
         5. Your final answer must be a summary of the files reviewed and the action taken.
     """,
     expected_output="A confirmation message listing all files reviewed and indicating that comments were successfully posted to the pull request.",
@@ -87,7 +87,7 @@ review_task = Task(
 code_review_crew = Crew(
     agents=[code_reviewer_agent],
     tasks=[review_task],
-    verbose=False,
+    verbose=True,
 )
 
 print("Starting Code Review Crew...")
