@@ -12,7 +12,7 @@ jobs:
   reply:
     runs-on: ubuntu-latest
 
-    # 1. PR Check: Ensure the comment is on a Pull Request, not a regular Issue.
+    # PR Check: Ensure the comment is on a Pull Request, not a regular Issue.
     # FIX APPLIED HERE: Check if the pull_request property exists in the issue object.
     if: github.event.issue.pull_request
 

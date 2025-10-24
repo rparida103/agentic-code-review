@@ -12,6 +12,9 @@ from py_tools.read_file_tool import read_file
 from py_tools.code_review_tool import code_review
 from py_tools.post_comment_tool import post_comment
 
+# Import PR description tool
+from py_tools.pr_description_tool import get_pr_details, update_pr_description, generate_pr_description
+
 # ------------------------------
 # Load environment variables
 # ------------------------------
@@ -95,4 +98,20 @@ for file_path in python_files:
     feedback = generate_code_review(content)
     post_review_feedback(file_path, feedback)
 
-print("\n✅ All Python files reviewed and comments posted to the PR.")
+# ------------------------------
+# Generate/update PR description ONCE
+# ------------------------------
+print("Fetching PR details for description update...")
+pr_details = get_pr_details(GITHUB_REPO, PR_NUMBER, GITHUB_TOKEN)
+current_body = pr_details.get("body") or ""
+print(f"Current PR body ({len(current_body)} chars): {current_body!r}")
+
+# Only update description if it's empty or too short
+if not current_body.strip() or len(current_body.strip()) < 20:
+    new_description = generate_pr_description(client, python_files, model=MODEL)
+    update_result = update_pr_description(GITHUB_REPO, PR_NUMBER, GITHUB_TOKEN, new_description)
+    print(update_result)
+else:
+    print("PR description already exists; skipping update.")
+
+print("\n All Python files reviewed and comments posted to the PR.")
