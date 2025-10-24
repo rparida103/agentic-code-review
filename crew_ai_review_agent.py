@@ -1,7 +1,7 @@
 import os
 from dotenv import load_dotenv
 from openai import OpenAI
-from crewai.agent import CrewAgent
+from crewai.agent import Agent
 
 from tools.list_files_tool import list_python_files
 from tools.read_file_tool import read_file
@@ -25,7 +25,7 @@ client = OpenAI(api_key=OPENAI_API_KEY)
 # ------------------------------
 # Create CrewAgent
 # ------------------------------
-agent = CrewAgent(model=MODEL, client=client)
+agent = Agent(model=MODEL, client=client)
 
 # ------------------------------
 # Step 1: List Python files in the PR
