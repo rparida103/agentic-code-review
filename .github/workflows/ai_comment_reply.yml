@@ -4,9 +4,17 @@ on:
   issue_comment:
     types: [created]
 
+permissions:
+  contents: read
+  issues: write # Required if you plan to use a token to post a reply
+
 jobs:
   reply:
     runs-on: ubuntu-latest
+
+    # 1. PR Check: Ensure the comment is on a Pull Request, not a regular Issue.
+    if: github.event.issue.pull_request
+
     steps:
       - uses: actions/checkout@v4
 
@@ -18,13 +26,33 @@ jobs:
       - name: Install dependencies
         run: pip install openai python-dotenv requests
 
+      # Optional: Add a step to prevent the bot from replying to itself
+      - name: Skip if comment is from bot
+        id: check_bot_user
+        run: |
+          BOT_USERNAME="rparida103"
+          COMMENT_USER="${{ github.event.comment.user.login }}"
+          if [[ "$COMMENT_USER" == "$BOT_USERNAME" ]]; then
+            echo "::notice::Comment made by bot ($BOT_USERNAME). Skipping reply."
+            echo "skip_job=true" >> $GITHUB_OUTPUT
+          fi
+
       - name: Run AI Comment Reply
+        # Only run if the check_bot_user step didn't set skip_job to true
+        if: steps.check_bot_user.outputs.skip_job != 'true'
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          # The GH_PAT is often needed for the bot to post replies
           GH_PAT: ${{ secrets.GH_PAT }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          COMMENT_ID: ${{ github.event.comment.id }}
+
+          # Use GITHUB_TOKEN for Actions' default token
+          # GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+          GITHUB_REPO: ${{ github.repository }}
+          # Use Issue Number for PR context (PRs are issues internally)
+          PR_NUMBER: ${{ github.event.issue.number }}
           COMMENT_BODY: ${{ github.event.comment.body }}
           COMMENT_USER: ${{ github.event.comment.user.login }}
-          BOT_USERNAME: rparida103
+
+        # Note: You can remove BOT_USERNAME from env if you handle the check above.
         run: python ai_comment_reply.py
