@@ -2,7 +2,7 @@ from openai import OpenAI
 import os
 from dotenv import load_dotenv
 
-# Load environment variables from .env
+# Load env variables from .env
 load_dotenv()
 
 # Initialize OpenAI client
