@@ -34,21 +34,23 @@ agent = Agent(
 )
 
 # ------------------------------
-# Register tools
+# Step 1: List Python files in the PR
 # ------------------------------
-tools = {
-    "list_python_files": lambda: list_python_files(repo=GITHUB_REPO, pr_number=PR_NUMBER, token=GITHUB_TOKEN),
-    "read_file": read_file,
-    "code_review": code_review,
-    "post_comment": lambda file_path, feedback: post_comment(
-        GITHUB_REPO,
-        PR_NUMBER,
-        f"**{file_path}**\n\n{feedback}",
-        GITHUB_TOKEN,
-    ),
-}
+python_files = list_python_files(repo=GITHUB_REPO, pr_number=PR_NUMBER, token=GITHUB_TOKEN)
 
 # ------------------------------
-# Run agent with tools
+# Step 2: Review each Python file
 # ------------------------------
-agent.run(tools=tools)
+for file_path in python_files:
+    try:
+        code = read_file(file_path)
+        feedback = code_review(code)
+        comment_status = post_comment(
+            GITHUB_REPO,
+            PR_NUMBER,
+            f"**{file_path}**\n\n{feedback}",
+            GITHUB_TOKEN,
+        )
+        print(f"Posted comment for {file_path}: {comment_status}")
+    except Exception as e:
+        print(f"Error reviewing {file_path}: {e}")
