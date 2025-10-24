@@ -51,11 +51,15 @@ tools = {
 # ------------------------------
 # Run agent with tools using chat method
 # ------------------------------
-while True:
-    response = agent.chat(tools=tools)
-    if response is None or not response.get("function_call"):
-        break
-    function_call = response["function_call"]
+# Execute the agent autonomously with tools
+agent_response = agent(
+    goal="Review Python files in the pull request and provide constructive feedback",
+    tools=tools
+)
+
+# Check if the agent returned a tool call
+function_call = agent_response.get("function_call")
+if function_call:
     tool_name = function_call["name"]
     arguments = function_call.get("arguments", {})
     if isinstance(arguments, str):
