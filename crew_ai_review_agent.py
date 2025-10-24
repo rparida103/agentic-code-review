@@ -4,7 +4,7 @@ from openai import OpenAI
 from crewai.agent import Agent
 from crewai.task import Task
 from crewai.crew import Crew
-from crewai_tools import tools
+from crewai.tools import tool
 
 # Import your custom tools (assumed to be standard functions)
 from py_tools.list_files_tool import list_python_files
@@ -30,22 +30,22 @@ client = OpenAI(api_key=OPENAI_API_KEY)
 # Define custom tools using the @tools.tool decorator
 # ------------------------------
 
-@tools.tool # <-- FIX 2: Use @tools.tool
+@tool # <-- FIX 2: Use @tools.tool
 def list_pr_python_files():
     """Lists all Python files modified in the current pull request. Returns a list of file paths."""
     return list_python_files(repo=GITHUB_REPO, pr_number=PR_NUMBER, token=GITHUB_TOKEN)
 
-@tools.tool # <-- FIX 2: Use @tools.tool
+@tool # <-- FIX 2: Use @tools.tool
 def read_file(file_path: str):
     """Reads the content of a specified file path."""
     return read_file(file_path)
 
-@tools.tool # <-- FIX 2: Use @tools.tool
+@tool # <-- FIX 2: Use @tools.tool
 def code_review(file_content: str):
     """Provides a detailed code review for the given file content, focusing on quality, bugs, and best practices."""
     return code_review(file_content)
 
-@tools.tool # <-- FIX 2: Use @tools.tool
+@tool # <-- FIX 2: Use @tools.tool
 def post_review_comment(file_path: str, feedback: str):
     """Posts a comment to the pull request for a given file path with the review feedback."""
     body = f"**{file_path}**\n\n{feedback}"
