@@ -51,10 +51,9 @@ tools = {
 # ------------------------------
 # Run agent with tools
 # ------------------------------
-# ------------------------------
-# Run agent with tools (Crew AI 1.2.0)
-# ------------------------------
-agent.execute(
-    goal="Review Python files in the pull request and provide constructive feedback",
-    tools=tools
-)
+while agent.has_next_step():
+    step = agent.next_step()
+    tool_name = step["tool"]
+    args = step.get("args", {})
+    result = tools[tool_name](**args)
+    agent.feed_result(result)
